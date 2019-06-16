@@ -1,4 +1,4 @@
-use i_face::backend::new;
+use i_face::backend::Proc;
 use i_face::frontend::Front;
 use std::env;
 use std::error::Error;
@@ -17,20 +17,16 @@ fn run() -> Result<(), Box<Error>> {
     args.reserve(0);
     let com = args.pop().expect("needs args length to one or more");
     println!("++command is {}", &com);
-    let mut child = Command::new(com)
-        .stdin(Stdio::piped())
-        //        .stdout(Stdio::piped())
-        //       .stderr(Stdio::piped())
-        .spawn()?;
+    let mut child = Command::new(com).stdin(Stdio::piped()).spawn()?;
 
-    let mut p = new(&mut child);
+    let mut p = Proc::new(&mut child);
     let mut f = Front::new();
-    let s = f.read();
-    let ns = format!("{}{}", s, "\n");
-    p.send(ns.as_bytes());
-    // let res = p.read();
-    // println!("{}", &res);
+    let mut c = |s: String| -> () {
+        let ns = format!("{}{}", s, "\n");
+        p.send(ns.as_bytes());
+    };
+    f.read_loop(&mut c);
     thread::sleep(Duration::from_secs(1));
-    p.wait()?;
+    p.kill()?;
     Ok(())
 }

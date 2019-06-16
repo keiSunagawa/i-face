@@ -7,11 +7,10 @@ pub struct Proc<'a> {
     underlying: &'a mut Child,
 }
 
-pub fn new(c: &mut Child) -> Proc {
-    Proc { underlying: c }
-}
-
 impl<'a> Proc<'a> {
+    pub fn new(c: &mut Child) -> Proc {
+        Proc { underlying: c }
+    }
     pub fn send(&mut self, msg: &[u8]) -> Result<(), Box<Error>> {
         self.underlying
             .stdin

@@ -7,19 +7,21 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    run();
-    println!("Hello, world!");
+    run().expect("Error!!!");
 }
 
 fn run() -> Result<(), Box<Error>> {
-    let mut args: Vec<String> = env::args().collect();
-    println!("++args is {:?}", &args);
-    args.reserve(0);
-    let com = args.pop().expect("needs args length to one or more");
+    let mut com_and_args = env::args().collect::<Vec<String>>().split_off(1);
+    let com = com_and_args
+        .pop()
+        .expect("needs args length to one or more");
     println!("++command is {}", &com);
-    let mut child = Command::new(com).stdin(Stdio::piped()).spawn()?;
+    let child = Command::new(com)
+        .args(com_and_args.as_slice())
+        .stdin(Stdio::piped())
+        .spawn()?;
 
-    let mut p = Proc::new(&mut child);
+    let mut p = Proc::new(child);
     let mut f = Front::new();
     let mut c = |s: String| -> () {
         let ns = format!("{}{}", s, "\n");

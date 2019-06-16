@@ -7,6 +7,8 @@ use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
 use rustyline::hint::{Hinter, HistoryHinter};
 use rustyline::{Cmd, CompletionType, Config, Context, EditMode, Editor, Helper, KeyPress};
 use std::borrow::Cow::{self, Borrowed, Owned};
+use std::thread;
+use std::time::Duration;
 
 pub struct Front {
     underlying: Editor<MyHelper>,
@@ -47,10 +49,14 @@ impl Front {
     }
     pub fn read_loop(&mut self, k: &mut FnMut(String) -> ()) {
         loop {
-            match self.underlying.readline("") {
+            let p = ">> ";
+            self.underlying.helper_mut().unwrap().colored_prompt =
+                format!("\x1b[1;32m{}\x1b[0m", p);
+            match self.underlying.readline(&p) {
                 Ok(line) => {
                     self.underlying.add_history_entry(line.as_ref());
                     k(line);
+                    thread::sleep(Duration::from_millis(100));
                 }
                 Err(ReadlineError::Interrupted) => {
                     println!("CTRL-C");

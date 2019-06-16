@@ -1,0 +1,8 @@
+[package]
+name = "i-face"
+version = "0.1.0"
+authors = ["keiSunagawa <kei.sunagawa@mvrck.co.jp>"]
+edition = "2018"
+
+[dependencies]
+rustyline = "4.1.0"

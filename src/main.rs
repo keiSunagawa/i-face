@@ -19,6 +19,7 @@ fn run() -> Result<(), Box<Error>> {
     let child = Command::new(com)
         .args(com_and_args.as_slice())
         .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
         .spawn()?;
 
     let mut p = Proc::new(child);

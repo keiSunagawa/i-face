@@ -1,14 +1,37 @@
+use std::io::Read;
+
 #[derive(PartialOrd, PartialEq, Debug)]
 pub enum ReadResult {
-    Continue,
+    Continue(Vec<u8>),
     Line(String),
     Prompt { remaining: String }, // res remaing
+    EOF,
 }
 
-fn read_byte(next: u8, buf: &mut Vec<u8>, prompt: &[u8]) -> ReadResult {
+pub struct StreamReader {
+    stream: Box<Read + Send>,
+}
+
+impl StreamReader {
+    pub fn new(sm: Box<Read + Send>) -> Self {
+        StreamReader { stream: sm }
+    }
+    pub fn read(&mut self, mut buf: Vec<u8>, prompt: &[u8]) -> ReadResult {
+        let mut bt = [0u8];
+        match self.stream.read(&mut bt) {
+            Ok(0) => ReadResult::EOF,
+            Ok(1) => read_byte(bt[0], buf, prompt),
+            a => {
+                println!("invalid res {:?}", &a);
+                panic!("read stream error!")
+            }
+        }
+    }
+}
+fn read_byte(next: u8, mut buf: Vec<u8>, prompt: &[u8]) -> ReadResult {
     // 値をproptの末尾と比較
     let last = prompt.last().expect("must prompt non empty!");
-    if last == &next && match_prompt(buf, prompt) {
+    if last == &next && match_prompt(&buf, prompt) {
         // 一致した場合はPromptを返す
         let rem = if buf.len() > prompt.len() - 1 {
             let n = buf.len() - (prompt.len() - 1);
@@ -22,12 +45,11 @@ fn read_byte(next: u8, buf: &mut Vec<u8>, prompt: &[u8]) -> ReadResult {
     } else if next == 0x0A {
         // 改行の場合はLineにくるんで返す
         let str = String::from_utf8(buf.clone()).expect("TODO safe string dcode");
-        buf.clear();
         ReadResult::Line(str)
     } else {
         // そうでない場合はbufに追加してContを返す
         buf.push(next);
-        ReadResult::Continue
+        ReadResult::Continue(buf)
     }
 }
 // 値が0の場合はEOFをreturn
@@ -36,9 +58,13 @@ fn read_byte(next: u8, buf: &mut Vec<u8>, prompt: &[u8]) -> ReadResult {
 fn match_prompt(buf: &Vec<u8>, prompt: &[u8]) -> bool {
     let n = prompt.len() - 1;
 
-    let p: Vec<&u8> = prompt.iter().take(n).collect();
-    let b: Vec<&u8> = buf.iter().skip(buf.len() - n).collect();
-    p == b
+    if buf.len() >= n {
+        let p: Vec<&u8> = prompt.iter().take(n).collect();
+        let b: Vec<&u8> = buf.iter().skip(buf.len() - n).collect();
+        p == b
+    } else {
+        false
+    }
 }
 
 #[test]

@@ -2,6 +2,9 @@ use std::error::Error;
 use std::io::Write;
 use std::process::Child;
 
+mod reader;
+use self::reader::{ReadResult, StreamReader};
+
 pub trait Backend {
     fn send(&mut self, msg: &[u8]) -> Result<(), Box<Error>>;
     fn wait(&mut self) -> Result<(), Box<Error>>;
@@ -10,11 +13,44 @@ pub trait Backend {
 
 pub struct Proc {
     underlying: Child,
+    stream: StreamReader,
 }
 
 impl Proc {
-    pub fn new(c: Child) -> Proc {
-        Proc { underlying: c }
+    pub fn new(mut c: Child) -> Proc {
+        let sm = c.stdout.take().expect("unread stdout on child process.");
+        let reader = StreamReader::new(Box::new(sm));
+        let mut p = Proc {
+            underlying: c,
+            stream: reader,
+        };
+        p.render();
+        p
+    }
+    fn render(&mut self) {
+        let mut buf = Vec::new();
+        let p = "scala> ".as_bytes(); // TODO struct param
+        loop {
+            // FIXME: clone ><
+            match self.stream.read(buf.clone(), p) {
+                ReadResult::EOF => {
+                    buf.clear();
+                    break;
+                }
+                ReadResult::Continue(nbuf) => {
+                    buf = nbuf;
+                }
+                ReadResult::Line(l) => {
+                    buf.clear();
+                    println!("{}", &l);
+                }
+                ReadResult::Prompt { remaining: r } => {
+                    buf.clear();
+                    print!("{}", &r);
+                    break;
+                }
+            }
+        }
     }
 }
 impl Backend for Proc {
@@ -24,8 +60,11 @@ impl Backend for Proc {
             .as_mut()
             .ok_or("Child process stdin has not been captured!")?
             .write_all(msg)?;
+
+        self.render();
         Ok(())
     }
+
     fn wait(&mut self) -> Result<(), Box<Error>> {
         self.underlying.wait()?;
         Ok(())
@@ -36,7 +75,6 @@ impl Backend for Proc {
     }
 }
 
-mod reader;
 // pub struct SubProc {
 //     underlying: Popen,
 // }

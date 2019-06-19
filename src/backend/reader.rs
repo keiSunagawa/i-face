@@ -2,14 +2,23 @@
 pub enum ReadResult {
     Continue,
     Line(String),
-    Prompt,
+    Prompt { remaining: String }, // res remaing
 }
+
 fn read_byte(next: u8, buf: &mut Vec<u8>, prompt: &[u8]) -> ReadResult {
     // 値をproptの末尾と比較
     let last = prompt.last().expect("must prompt non empty!");
     if last == &next && match_prompt(buf, prompt) {
         // 一致した場合はPromptを返す
-        ReadResult::Prompt
+        let rem = if buf.len() > prompt.len() - 1 {
+            let n = buf.len() - (prompt.len() - 1);
+            let b = buf.iter().take(n).cloned().collect::<Vec<u8>>();
+            let res = String::from_utf8(b).unwrap();
+            res
+        } else {
+            "".to_string()
+        };
+        ReadResult::Prompt { remaining: rem }
     } else if next == 0x0A {
         // 改行の場合はLineにくるんで返す
         let str = String::from_utf8(buf.clone()).expect("TODO safe string dcode");
@@ -26,13 +35,10 @@ fn read_byte(next: u8, buf: &mut Vec<u8>, prompt: &[u8]) -> ReadResult {
 // 一致した場合はpromptの長さ分bufから取り出して比較
 fn match_prompt(buf: &Vec<u8>, prompt: &[u8]) -> bool {
     let n = prompt.len() - 1;
-    if buf.len() == n {
-        let p: Vec<&u8> = prompt.iter().take(prompt.len() - 1).collect();
-        let b: Vec<&u8> = buf.iter().skip(buf.len() - n).collect();
-        p == b
-    } else {
-        false
-    }
+
+    let p: Vec<&u8> = prompt.iter().take(n).collect();
+    let b: Vec<&u8> = buf.iter().skip(buf.len() - n).collect();
+    p == b
 }
 
 #[test]
@@ -46,7 +52,7 @@ fn test_match_prompt() {
 }
 #[test]
 fn test_read_byte_match_prompt() {
-    let buf = "scala";
+    let buf = "go scala";
     let prompt = "scala>";
     let next = ">";
     let res = read_byte(
@@ -54,7 +60,12 @@ fn test_read_byte_match_prompt() {
         &mut buf.as_bytes().to_vec(),
         &prompt.as_bytes(),
     );
-    assert_eq!(res, ReadResult::Prompt);
+    assert_eq!(
+        res,
+        ReadResult::Prompt {
+            remaining: "go ".to_string()
+        }
+    );
 }
 #[test]
 fn test_read_byte_match_new_line() {

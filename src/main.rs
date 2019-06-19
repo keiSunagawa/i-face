@@ -1,4 +1,4 @@
-use i_face::backend::Proc;
+use i_face::backend::{Backend, Proc};
 use i_face::frontend::Front;
 use std::env;
 use std::error::Error;
@@ -19,6 +19,7 @@ fn run() -> Result<(), Box<Error>> {
     let child = Command::new(com)
         .args(com_and_args.as_slice())
         .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
         .spawn()?;
 
     let mut p = Proc::new(child);

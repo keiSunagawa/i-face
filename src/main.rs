@@ -1,4 +1,4 @@
-use i_face::backend::Proc;
+use i_face::backend::{Backend, Proc};
 use i_face::frontend::Front;
 use std::env;
 use std::error::Error;
